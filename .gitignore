@@ -1,0 +1,11 @@
+# Ignorar tudo
+*
+
+# Incluir apenas o arquivo sgm.sh
+!sgm.sh
+
+# Incluir este .gitignore também
+!.gitignore
+
+# Incluir README.md se existir
+!README.md
