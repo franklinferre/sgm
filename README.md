@@ -73,9 +73,12 @@ O **SGM** é um script Bash completo que automatiza a instalação, configuraç�
 - ✅ Informações detalhadas do sistema
 
 ### 🎨 Scripts Externos
-- ✅ **Script Orion Design** (remoto)
+- ✅ **SetupOrion** - 60+ ferramentas Open Source
+- ✅ Desenvolvido por **OrionDesign** (MIT License)
+- ✅ Traefik, Portainer, Chatwoot, Evolution API, etc.
 - ✅ Execução segura com confirmação
 - ✅ Tratamento de erros integrado
+- ✅ Créditos apropriados conforme licença
 
 ## 📋 Pré-requisitos
 
@@ -127,7 +130,7 @@ Selecione uma opção:
  2)  📦 Instalar pacotes essenciais
  ...
 18)  🚀 Configuração completa (recomendado)
-19)  🎨 Script Orion Design (remoto)
+19)  🎨 SetupOrion - 60+ ferramentas Open Source (remoto)
 ```
 
 ## 📋 Menu Principal
@@ -152,7 +155,7 @@ Selecione uma opção:
 | **16** | 🧹 Sistema | Limpeza completa |
 | **17** | 📊 Info | Informações detalhadas |
 | **18** | 🚀 Setup | Configuração automática |
-| **19** | 🎨 Orion | Script remoto Orion Design |
+| **19** | 🎨 SetupOrion | 60+ ferramentas Open Source |
 
 ## 🌐 Recursos Avançados
 
@@ -268,16 +271,21 @@ Executa sequencialmente:
 
 **Tempo estimado**: 5-10 minutos
 
-### Opção 19: Script Orion Design
+### Opção 19: SetupOrion
 
-Executa script remoto com:
+Executa SetupOrion (MIT License) com:
 
-1. ✅ **Confirmação de segurança** obrigatória
-2. ✅ **Download seguro** via HTTPS
-3. ✅ **Execução monitorada** com logs
-4. ✅ **Tratamento de erros** integrado
+1. ✅ **Créditos ao OrionDesign** exibidos
+2. ✅ **60+ ferramentas** Open Source disponíveis
+3. ✅ **Confirmação de segurança** obrigatória
+4. ✅ **Download seguro** via HTTPS
+5. ✅ **Execução monitorada** com logs
+6. ✅ **Tratamento de erros** integrado
 
-**URL**: `setup.oriondesign.art.br`
+**Desenvolvido por**: OrionDesign  
+**Licença**: MIT (100% Gratuito)  
+**URL**: `setup.oriondesign.art.br`  
+**GitHub**: https://github.com/oriondesign2015/SetupOrion
 
 ## 🔧 Pacotes Instalados
 
@@ -328,13 +336,14 @@ sudo ./sgm.sh
 # Resultado: Sistema limpo e otimizado
 ```
 
-### Script Orion Design
+### SetupOrion - 60+ Ferramentas Open Source
 
 ```bash
 sudo ./sgm.sh
 # Escolher opção 19
+# Verificar créditos e licença MIT
 # Confirmar execução: s
-# Resultado: Script remoto executado com segurança
+# Resultado: Acesso a 60+ ferramentas (Traefik, Portainer, etc.)
 ```
 
 ## 🤝 Contribuição
@@ -390,6 +399,18 @@ Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para mais detalh
 - Desenvolvedores **FRR**
 - Projeto **Docker**
 - Equipe **Netplan**
+
+## 🏷️ Licenças e Créditos de Projetos Terceiros
+
+### SetupOrion (Opção 19)
+- **Projeto**: [SetupOrion](https://github.com/oriondesign2015/SetupOrion)
+- **Desenvolvido por**: OrionDesign
+- **Licença**: MIT License
+- **Descrição**: Maior e melhor Setup de soluções Open Source (100% Gratuito)
+- **Estatísticas**: 563+ Stars | 221+ Forks
+- **Ferramentas incluídas**: 60+ aplicações (Traefik, Portainer, Chatwoot, Evolution API, MinIO, Typebot, N8N, etc.)
+
+> ⚠️ **Nota**: O SGM executa o SetupOrion respeitando sua licença MIT e exibindo os créditos apropriados conforme solicitado pelos desenvolvedores.
 
 ---
 

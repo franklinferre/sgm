@@ -1017,20 +1017,37 @@ show_system_info() {
 
 # Função para executar script Orion Design
 run_orion_setup() {
-    print_step "Executando script de setup Orion Design..."
+    print_step "Executando SetupOrion - Setup de soluções Open Source..."
     
+    echo
+    print_info "╔══════════════════════════════════════════════════════════════════════════════╗"
+    print_info "║                           CRÉDITOS E LICENÇA                                ║"
+    print_info "╚══════════════════════════════════════════════════════════════════════════════╝"
+    echo
+    print_info "📄 Projeto: SetupOrion"
+    print_info "👨‍💻 Desenvolvido por: OrionDesign" 
+    print_info "🌐 GitHub: https://github.com/oriondesign2015/SetupOrion"
+    print_info "📋 Licença: MIT License (100% Gratuito)"
+    print_info "🎯 Descrição: Maior e melhor Setup de soluções Open Source"
+    print_info "⭐ Stars: 563+ | 🍴 Forks: 221+"
+    echo
     print_warning "ATENÇÃO: Você está prestes a executar um script remoto!"
-    print_info "URL: setup.oriondesign.art.br"
-    print_info "Este script será baixado e executado automaticamente"
+    print_info "🔗 URL: setup.oriondesign.art.br"
+    print_info "📦 Ferramentas: 60+ aplicações (Traefik, Portainer, Chatwoot, etc.)"
+    print_info "💿 Este script será baixado e executado automaticamente"
+    echo
+    print_warning "⚠️  IMPORTANTE: O servidor precisa estar vazio para a instalação!"
+    print_info "📋 Recomendado: Ubuntu 20.04+ com mínimo 4GB RAM e 2vCPU"
     echo
     
-    read -p "Confirma a execução do script Orion Design? (s/n): " confirm
+    read -p "Confirma a execução do SetupOrion? (s/n): " confirm
     if [[ ! "$confirm" =~ ^[SsYy]$ ]]; then
         print_info "Execução cancelada"
         return 0
     fi
     
-    print_info "Baixando e executando script Orion Design..."
+    print_info "Baixando e executando SetupOrion..."
+    print_info "Créditos: OrionDesign (https://github.com/oriondesign2015/SetupOrion)"
     echo
     
     # Executar o script remoto
@@ -1038,10 +1055,12 @@ run_orion_setup() {
     
     local exit_code=$?
     
+    echo
     if [[ $exit_code -eq 0 ]]; then
-        print_success "Script Orion Design executado com sucesso!"
+        print_success "SetupOrion executado com sucesso!"
+        print_info "🙏 Créditos: OrionDesign - Projeto SetupOrion (MIT License)"
     else
-        print_error "Falha na execução do script Orion Design (código: $exit_code)"
+        print_error "Falha na execução do SetupOrion (código: $exit_code)"
     fi
 }
 
@@ -1079,7 +1098,7 @@ show_menu() {
     echo -e "${CYAN}17)${NC}  📊 Informações do sistema"
     echo
     echo -e "${CYAN}18)${NC}  🚀 Configuração completa (recomendado)"
-    echo -e "${CYAN}19)${NC}  🎨 Script Orion Design (remoto)"
+    echo -e "${CYAN}19)${NC}  🎨 SetupOrion - 60+ ferramentas Open Source (remoto)"
     echo
     echo -e "${CYAN} 0)${NC}  ❌ Sair"
     echo
