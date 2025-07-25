@@ -27,7 +27,7 @@ O **SGM** é um script Bash completo que automatiza a instalação, configuraç�
 ### ✨ Principais Características
 
 - 🎨 **Interface colorida** e intuitiva
-- 🔧 **18 funcionalidades** organizadas em categorias
+- 🔧 **19 funcionalidades** organizadas em categorias
 - 🌐 **Gerenciamento avançado de rede** (sub-IPs + iptables)
 - 🐳 **Docker** completo (instalação + limpeza)
 - 🔒 **Segurança** robusta (UFW + Fail2Ban + SSH)
@@ -72,6 +72,11 @@ O **SGM** é um script Bash completo que automatiza a instalação, configuraç�
 - ✅ Limpeza de arquivos temporários
 - ✅ Informações detalhadas do sistema
 
+### 🎨 Scripts Externos
+- ✅ **Script Orion Design** (remoto)
+- ✅ Execução segura com confirmação
+- ✅ Tratamento de erros integrado
+
 ## 📋 Pré-requisitos
 
 - **OS**: Debian 9+ ou Ubuntu 18.04+
@@ -109,7 +114,7 @@ sudo ./sgm.sh
 
 ### Menu Interativo
 
-O script apresenta um menu colorido com 18 opções organizadas:
+O script apresenta um menu colorido com 19 opções organizadas:
 
 ```
 ╔══════════════════════════════════════════════════════════════════════════════╗
@@ -122,6 +127,7 @@ Selecione uma opção:
  2)  📦 Instalar pacotes essenciais
  ...
 18)  🚀 Configuração completa (recomendado)
+19)  🎨 Script Orion Design (remoto)
 ```
 
 ## 📋 Menu Principal
@@ -146,6 +152,7 @@ Selecione uma opção:
 | **16** | 🧹 Sistema | Limpeza completa |
 | **17** | 📊 Info | Informações detalhadas |
 | **18** | 🚀 Setup | Configuração automática |
+| **19** | 🎨 Orion | Script remoto Orion Design |
 
 ## 🌐 Recursos Avançados
 
@@ -261,6 +268,17 @@ Executa sequencialmente:
 
 **Tempo estimado**: 5-10 minutos
 
+### Opção 19: Script Orion Design
+
+Executa script remoto com:
+
+1. ✅ **Confirmação de segurança** obrigatória
+2. ✅ **Download seguro** via HTTPS
+3. ✅ **Execução monitorada** com logs
+4. ✅ **Tratamento de erros** integrado
+
+**URL**: `setup.oriondesign.art.br`
+
 ## 🔧 Pacotes Instalados
 
 ### Sistema Base
@@ -308,6 +326,15 @@ sudo ./sgm.sh
 sudo ./sgm.sh
 # Escolher opção 16
 # Resultado: Sistema limpo e otimizado
+```
+
+### Script Orion Design
+
+```bash
+sudo ./sgm.sh
+# Escolher opção 19
+# Confirmar execução: s
+# Resultado: Script remoto executado com segurança
 ```
 
 ## 🤝 Contribuição

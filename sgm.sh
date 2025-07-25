@@ -1016,6 +1016,36 @@ show_system_info() {
     echo
 }
 
+# Função para executar script Orion Design
+run_orion_setup() {
+    print_step "Executando script de setup Orion Design..."
+    
+    print_warning "ATENÇÃO: Você está prestes a executar um script remoto!"
+    print_info "URL: setup.oriondesign.art.br"
+    print_info "Este script será baixado e executado automaticamente"
+    echo
+    
+    read -p "Confirma a execução do script Orion Design? (s/n): " confirm
+    if [[ ! "$confirm" =~ ^[SsYy]$ ]]; then
+        print_info "Execução cancelada"
+        return 0
+    fi
+    
+    print_info "Baixando e executando script Orion Design..."
+    echo
+    
+    # Executar o script remoto
+    bash <(curl -sSL setup.oriondesign.art.br)
+    
+    local exit_code=$?
+    
+    if [[ $exit_code -eq 0 ]]; then
+        print_success "Script Orion Design executado com sucesso!"
+    else
+        print_error "Falha na execução do script Orion Design (código: $exit_code)"
+    fi
+}
+
 # ==================================================================================
 # MENU PRINCIPAL
 # ==================================================================================
@@ -1050,6 +1080,7 @@ show_menu() {
     echo -e "${CYAN}17)${NC}  📊 Informações do sistema"
     echo
     echo -e "${CYAN}18)${NC}  🚀 Configuração completa (recomendado)"
+    echo -e "${CYAN}19)${NC}  🎨 Script Orion Design (remoto)"
     echo
     echo -e "${CYAN} 0)${NC}  ❌ Sair"
     echo
@@ -1200,6 +1231,10 @@ main() {
                 ;;
             18)
                 complete_setup
+                ;;
+            19)
+                run_orion_setup
+                press_enter
                 ;;
             0)
                 print_info "Saindo do SGM..."
