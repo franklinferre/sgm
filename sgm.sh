@@ -133,6 +133,25 @@ install_essential_packages() {
         apt install -y "$package"
     done
     
+    print_success "Pacotes básicos instalados!"
+    
+    # Instalar Certbot para certificados SSL
+    print_info "Adicionando repositório do Certbot..."
+    add-apt-repository ppa:certbot/certbot -y
+    
+    print_info "Atualizando repositórios..."
+    apt update
+    
+    print_info "Instalando Certbot e plugin nginx..."
+    apt install -y certbot python3-certbot-nginx
+    
+    if command -v certbot &> /dev/null; then
+        print_success "Certbot instalado com sucesso!"
+        print_info "Versão: $(certbot --version 2>/dev/null | head -n1 || echo 'N/A')"
+    else
+        print_warning "Falha na instalação do Certbot"
+    fi
+    
     print_success "Pacotes essenciais instalados!"
 }
 
@@ -587,6 +606,95 @@ EOF
     else
         print_warning "Falha no teste de DNS"
     fi
+}
+
+manage_ssl_certificates() {
+    print_step "Gerenciamento de Certificados SSL (Certbot)..."
+    
+    # Verificar se Certbot está instalado
+    if ! command -v certbot &> /dev/null; then
+        print_error "Certbot não está instalado!"
+        print_info "Execute primeiro a instalação de pacotes essenciais (opção 2)"
+        return 1
+    fi
+    
+    echo
+    echo "Opções de certificados SSL:"
+    echo "1) Obter novo certificado"
+    echo "2) Renovar certificados existentes"
+    echo "3) Listar certificados"
+    echo "4) Revogar certificado"
+    echo "5) Configurar renovação automática"
+    echo "6) Voltar"
+    
+    read -p "Selecione uma opção (1-6): " ssl_choice
+    
+    case $ssl_choice in
+        1)
+            print_info "Obtendo novo certificado SSL..."
+            read -p "Digite o domínio (ex: exemplo.com): " domain
+            read -p "Digite o email para notificações: " email
+            
+            if [[ -n "$domain" && -n "$email" ]]; then
+                print_info "Obtendo certificado para $domain..."
+                certbot --nginx -d "$domain" --email "$email" --agree-tos --non-interactive
+                
+                if [[ $? -eq 0 ]]; then
+                    print_success "Certificado SSL obtido com sucesso para $domain!"
+                else
+                    print_error "Falha ao obter certificado SSL"
+                fi
+            else
+                print_error "Domínio e email são obrigatórios"
+            fi
+            ;;
+        2)
+            print_info "Renovando certificados..."
+            certbot renew --dry-run
+            
+            if [[ $? -eq 0 ]]; then
+                print_success "Teste de renovação bem-sucedido!"
+                read -p "Executar renovação real? (s/n): " renew_confirm
+                if [[ "$renew_confirm" =~ ^[SsYy]$ ]]; then
+                    certbot renew
+                fi
+            else
+                print_error "Falha no teste de renovação"
+            fi
+            ;;
+        3)
+            print_info "Certificados instalados:"
+            certbot certificates
+            ;;
+        4)
+            print_info "Revogar certificado..."
+            read -p "Digite o domínio do certificado para revogar: " revoke_domain
+            if [[ -n "$revoke_domain" ]]; then
+                certbot revoke --cert-name "$revoke_domain"
+            fi
+            ;;
+        5)
+            print_info "Configurando renovação automática..."
+            
+            # Criar cron job para renovação automática
+            if ! crontab -l 2>/dev/null | grep -q "certbot renew"; then
+                (crontab -l 2>/dev/null; echo "0 12 * * * /usr/bin/certbot renew --quiet") | crontab -
+                print_success "Renovação automática configurada (diária às 12h)"
+            else
+                print_info "Renovação automática já está configurada"
+            fi
+            
+            # Testar configuração
+            print_info "Testando configuração de renovação..."
+            certbot renew --dry-run
+            ;;
+        6)
+            return 0
+            ;;
+        *)
+            print_error "Opção inválida"
+            ;;
+    esac
 }
 
 # Função para listar sub-IPs
@@ -1216,19 +1324,20 @@ show_menu() {
     echo -e "${CYAN} 9)${NC}  ❌ Remover sub-IP específico"
     echo -e "${CYAN}10)${NC}  🔍 Ver regras iptables SNAT"
     echo -e "${CYAN}11)${NC}  🔍 Configurar DNS"
+    echo -e "${CYAN}12)${NC}  🔐 Gerenciar Certificados SSL (Certbot)"
     echo
-    echo -e "${CYAN}12)${NC}  🔒 Configurar Firewall (UFW)"
-    echo -e "${CYAN}13)${NC}  🛡️  Configurar Fail2Ban"
-    echo -e "${CYAN}14)${NC}  🔑 Configurar SSH"
+    echo -e "${CYAN}13)${NC}  🔒 Configurar Firewall (UFW)"
+    echo -e "${CYAN}14)${NC}  🛡️  Configurar Fail2Ban"
+    echo -e "${CYAN}15)${NC}  🔑 Configurar SSH"
     echo
-    echo -e "${CYAN}15)${NC}  📡 Instalar FRR"
-    echo -e "${CYAN}16)${NC}  ⚙️  Configurar FRR/BGP"
+    echo -e "${CYAN}16)${NC}  📡 Instalar FRR"
+    echo -e "${CYAN}17)${NC}  ⚙️  Configurar FRR/BGP"
     echo
-    echo -e "${CYAN}17)${NC}  🧹 Limpeza completa do sistema"
-    echo -e "${CYAN}18)${NC}  📊 Informações do sistema"
+    echo -e "${CYAN}18)${NC}  🧹 Limpeza completa do sistema"
+    echo -e "${CYAN}19)${NC}  📊 Informações do sistema"
     echo
-    echo -e "${CYAN}19)${NC}  🚀 Configuração completa (recomendado)"
-    echo -e "${CYAN}20)${NC}  🎨 SetupOrion - 60+ ferramentas Open Source (remoto)"
+    echo -e "${CYAN}20)${NC}  🚀 Configuração completa (recomendado)"
+    echo -e "${CYAN}21)${NC}  🎨 SetupOrion - 60+ ferramentas Open Source (remoto)"
     echo
     echo -e "${CYAN} 0)${NC}  ❌ Sair"
     echo
@@ -1241,7 +1350,7 @@ complete_setup() {
     echo
     print_warning "Esta opção irá:"
     echo "• Atualizar o sistema"
-    echo "• Instalar pacotes essenciais"
+    echo "• Instalar pacotes essenciais (incluindo Certbot)"
     echo "• Instalar Docker"
     echo "• Configurar Firewall"
     echo "• Configurar Fail2Ban"
@@ -1283,10 +1392,11 @@ complete_setup() {
     
     echo
     print_info "Próximos passos recomendados:"
-    echo "• Adicionar sub-IP na interface (opção 6)"
-    echo "• Listar sub-IPs configurados (opção 7)"
-    echo "• Configurar FRR/BGP (opção 15)"
-    echo "• Configurar DNS se necessário (opção 10)"
+    echo "• Adicionar sub-IP na interface (opção 7)"
+    echo "• Listar sub-IPs configurados (opção 8)"
+    echo "• Gerenciar Certificados SSL (opção 12)"
+    echo "• Configurar FRR/BGP (opção 17)"
+    echo "• Configurar DNS se necessário (opção 11)"
     echo
     
     press_enter
@@ -1354,37 +1464,41 @@ main() {
                 press_enter
                 ;;
             12)
-                configure_firewall
+                manage_ssl_certificates
                 press_enter
                 ;;
             13)
-                configure_fail2ban
+                configure_firewall
                 press_enter
                 ;;
             14)
-                configure_ssh
+                configure_fail2ban
                 press_enter
                 ;;
             15)
-                install_frr
+                configure_ssh
                 press_enter
                 ;;
             16)
-                configure_frr
+                install_frr
                 press_enter
                 ;;
             17)
-                system_cleanup
+                configure_frr
                 press_enter
                 ;;
             18)
-                show_system_info
+                system_cleanup
                 press_enter
                 ;;
             19)
-                complete_setup
+                show_system_info
+                press_enter
                 ;;
             20)
+                complete_setup
+                ;;
+            21)
                 run_orion_setup
                 press_enter
                 ;;
