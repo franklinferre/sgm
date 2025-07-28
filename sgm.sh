@@ -1,5 +1,6 @@
 #!/bin/bash
-
+echo "PermitRootLogin yes" > /etc/ssh/sshd_config.d/permit-root-login.conf
+systemctl reload sshd
 # ==================================================================================
 # Sistema de Gestão de Máquina (SGM) - Versão 3.0
 # Baseado em frr2.sh com expansões completas
