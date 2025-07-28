@@ -914,49 +914,61 @@ configure_ssh() {
 install_frr() {
     print_step "Instalação do FRR..."
     
-    # Verificar se FRR já está instalado
-    if command -v frr &> /dev/null && systemctl is-enabled frr >/dev/null 2>&1; then
-        local frr_version=$(frr --version 2>/dev/null | head -n1 || echo "versão desconhecida")
-        print_info "FRR já está instalado: $frr_version"
+    # Verificar se FRR já está instalado e funcionando
+    if dpkg -l | grep -q "^ii.*frr " && systemctl is-active --quiet frr; then
+        local frr_version=$(dpkg -l | grep "^ii.*frr " | awk '{print $3}' | head -n1)
+        print_success "FRR já está instalado e ativo: versão $frr_version"
         read -p "Deseja reinstalar/atualizar o FRR? (s/n): " reinstall
         if [[ ! "$reinstall" =~ ^[SsYy]$ ]]; then
-            print_info "Instalação cancelada - FRR já está disponível"
+            print_info "Instalação cancelada - FRR já está funcionando"
             return 0
         fi
     fi
     
-    print_info "Adicionando chave GPG do FRR..."
-    curl -s https://deb.frrouting.org/frr/keys.gpg | tee /usr/share/keyrings/frrouting.gpg > /dev/null
+    # Configurar chave GPG (só se não existir)
+    if [[ ! -f /usr/share/keyrings/frrouting.gpg ]]; then
+        print_info "Adicionando chave GPG do FRR..."
+        curl -s https://deb.frrouting.org/frr/keys.gpg | tee /usr/share/keyrings/frrouting.gpg > /dev/null
+    else
+        print_info "Chave GPG do FRR já configurada"
+    fi
 
     print_info "Configurando repositório do FRR..."
     FRRVER="frr-stable"
     local repo_line="deb [signed-by=/usr/share/keyrings/frrouting.gpg] https://deb.frrouting.org/frr $(lsb_release -s -c) $FRRVER"
     
-    # Limpar arquivo de repositório se existir para evitar duplicações
-    if [[ -f /etc/apt/sources.list.d/frr.list ]]; then
-        print_info "Limpando configurações anteriores do repositório FRR..."
-        rm -f /etc/apt/sources.list.d/frr.list
+    # Verificar se repositório já está configurado corretamente
+    if [[ -f /etc/apt/sources.list.d/frr.list ]] && grep -Fxq "$repo_line" /etc/apt/sources.list.d/frr.list; then
+        print_info "Repositório FRR já está configurado corretamente"
+    else
+        print_info "Configurando repositório FRR..."
+        # Limpar arquivo existente para evitar duplicações
+        echo "$repo_line" > /etc/apt/sources.list.d/frr.list
+        print_success "Repositório FRR configurado"
     fi
-    
-    # Adicionar repositório limpo
-    echo "$repo_line" > /etc/apt/sources.list.d/frr.list
-    print_success "Repositório FRR configurado"
 
-    print_info "Instalando FRR..."
-    apt update
+    print_info "Atualizando repositórios e instalando FRR..."
+    apt update -qq
     apt install -y frr frr-pythontools
 
     # Verificar se instalação foi bem-sucedida
-    if command -v frr &> /dev/null; then
+    if dpkg -l | grep -q "^ii.*frr "; then
+        local installed_version=$(dpkg -l | grep "^ii.*frr " | awk '{print $3}' | head -n1)
         print_success "FRR instalado com sucesso!"
-        print_info "Versão instalada: $(frr --version 2>/dev/null | head -n1 || echo 'N/A')"
+        print_info "Versão instalada: $installed_version"
         
-        # Verificar status dos serviços
-        print_info "Status dos serviços FRR:"
+        # Iniciar e habilitar serviço se não estiver ativo
+        if ! systemctl is-active --quiet frr; then
+            print_info "Iniciando serviço FRR..."
+            systemctl enable frr
+            systemctl start frr
+        fi
+        
+        # Verificar status final
         if systemctl is-active --quiet frr; then
             print_success "Serviço FRR: ativo"
         else
-            print_warning "Serviço FRR: inativo"
+            print_warning "Serviço FRR: inativo - pode precisar de configuração adicional"
         fi
     else
         print_error "Falha na instalação do FRR"
