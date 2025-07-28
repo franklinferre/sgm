@@ -162,6 +162,68 @@ configure_timezone() {
     print_success "Timezone configurado: $(timedatectl show --property=Timezone --value)"
 }
 
+configure_pve_lxc_swarm() {
+    print_step "Configurando PVE para Docker Swarm em LXC..."
+    
+    print_info "Esta configuração permitirá que containers LXC executem Docker Swarm"
+    print_warning "ATENÇÃO: Esta configuração é específica para Proxmox VE (PVE)"
+    echo
+    
+    read -p "Confirma a configuração do PVE para suporte a LXC + Docker Swarm? (s/n): " confirm
+    if [[ ! "$confirm" =~ ^[SsYy]$ ]]; then
+        print_info "Configuração cancelada"
+        return 0
+    fi
+    
+    # Fazer backup da configuração atual do sysctl
+    if [[ -f /etc/sysctl.conf ]]; then
+        cp /etc/sysctl.conf /etc/sysctl.conf.backup.$(date +%s)
+        print_info "Backup da configuração sysctl criado"
+    fi
+    
+    set -e
+
+    echo "🔧 Ativando sysctl net.ipv4.ip_forward..."
+    echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
+    sysctl -w net.ipv4.ip_forward=1
+
+    echo "📦 Instalando módulos de rede e IPVS..."
+    cat <<EOF > /etc/modules-load.d/lxc-docker-swarm.conf
+overlay
+br_netfilter
+ip_vs
+ip_vs_rr
+ip_vs_wrr
+ip_vs_sh
+nf_conntrack
+EOF
+
+    modprobe overlay
+    modprobe br_netfilter
+    modprobe ip_vs
+    modprobe nf_conntrack
+
+    echo "✅ Aplicando sysctl -p..."
+    sysctl -p
+
+    echo "✅ Módulos carregados:"
+    lsmod | grep -E 'ip_vs|br_netfilter|overlay|nf_conntrack'
+    
+    print_success "Configuração PVE para Docker Swarm em LXC concluída!"
+    print_info "Os módulos serão carregados automaticamente na próxima inicialização"
+    print_info "IP forwarding ativado permanentemente"
+    
+    echo
+    print_info "Módulos configurados para carregamento automático:"
+    echo "  • overlay: Para rede overlay do Docker Swarm"
+    echo "  • br_netfilter: Para filtragem de ponte de rede"
+    echo "  • ip_vs: Para balanceamento de carga IPVS"
+    echo "  • ip_vs_rr: Round-robin scheduling"
+    echo "  • ip_vs_wrr: Weighted round-robin scheduling"
+    echo "  • ip_vs_sh: Source hashing scheduling"
+    echo "  • nf_conntrack: Para rastreamento de conexão"
+}
+
 # ==================================================================================
 # MÓDULO DOCKER
 # ==================================================================================
@@ -1077,28 +1139,29 @@ show_menu() {
     echo -e "${CYAN} 1)${NC}  🔄 Atualizar sistema (update/upgrade)"
     echo -e "${CYAN} 2)${NC}  📦 Instalar pacotes essenciais"
     echo -e "${CYAN} 3)${NC}  🕒 Configurar timezone"
+    echo -e "${CYAN} 4)${NC}  📡 Configurar PVE para Docker Swarm em LXC"
     echo
-    echo -e "${CYAN} 4)${NC}  🐳 Instalar Docker"
-    echo -e "${CYAN} 5)${NC}  🧹 Limpeza do Docker"
+    echo -e "${CYAN} 5)${NC}  🐳 Instalar Docker"
+    echo -e "${CYAN} 6)${NC}  🧹 Limpeza do Docker"
     echo
-    echo -e "${CYAN} 6)${NC}  🌐 Adicionar sub-IP em interface (+ iptables)"
-    echo -e "${CYAN} 7)${NC}  📋 Listar sub-IPs configurados"
-    echo -e "${CYAN} 8)${NC}  ❌ Remover sub-IP específico"
-    echo -e "${CYAN} 9)${NC}  🔍 Ver regras iptables SNAT"
-    echo -e "${CYAN}10)${NC}  🔍 Configurar DNS"
+    echo -e "${CYAN} 7)${NC}  🌐 Adicionar sub-IP em interface (+ iptables)"
+    echo -e "${CYAN} 8)${NC}  📋 Listar sub-IPs configurados"
+    echo -e "${CYAN} 9)${NC}  ❌ Remover sub-IP específico"
+    echo -e "${CYAN}10)${NC}  🔍 Ver regras iptables SNAT"
+    echo -e "${CYAN}11)${NC}  🔍 Configurar DNS"
     echo
-    echo -e "${CYAN}11)${NC}  🔒 Configurar Firewall (UFW)"
-    echo -e "${CYAN}12)${NC}  🛡️  Configurar Fail2Ban"
-    echo -e "${CYAN}13)${NC}  🔑 Configurar SSH"
+    echo -e "${CYAN}12)${NC}  🔒 Configurar Firewall (UFW)"
+    echo -e "${CYAN}13)${NC}  🛡️  Configurar Fail2Ban"
+    echo -e "${CYAN}14)${NC}  🔑 Configurar SSH"
     echo
-    echo -e "${CYAN}14)${NC}  📡 Instalar FRR"
-    echo -e "${CYAN}15)${NC}  ⚙️  Configurar FRR/BGP"
+    echo -e "${CYAN}15)${NC}  📡 Instalar FRR"
+    echo -e "${CYAN}16)${NC}  ⚙️  Configurar FRR/BGP"
     echo
-    echo -e "${CYAN}16)${NC}  🧹 Limpeza completa do sistema"
-    echo -e "${CYAN}17)${NC}  📊 Informações do sistema"
+    echo -e "${CYAN}17)${NC}  🧹 Limpeza completa do sistema"
+    echo -e "${CYAN}18)${NC}  📊 Informações do sistema"
     echo
-    echo -e "${CYAN}18)${NC}  🚀 Configuração completa (recomendado)"
-    echo -e "${CYAN}19)${NC}  🎨 SetupOrion - 60+ ferramentas Open Source (remoto)"
+    echo -e "${CYAN}19)${NC}  🚀 Configuração completa (recomendado)"
+    echo -e "${CYAN}20)${NC}  🎨 SetupOrion - 60+ ferramentas Open Source (remoto)"
     echo
     echo -e "${CYAN} 0)${NC}  ❌ Sair"
     echo
@@ -1192,65 +1255,69 @@ main() {
                 press_enter
                 ;;
             4)
-                install_docker
+                configure_pve_lxc_swarm
                 press_enter
                 ;;
             5)
-                docker_cleanup
+                install_docker
                 press_enter
                 ;;
             6)
-                configure_ip_subinterface
+                docker_cleanup
                 press_enter
                 ;;
             7)
-                list_sub_ips
+                configure_ip_subinterface
                 press_enter
                 ;;
             8)
-                remove_sub_ip
+                list_sub_ips
                 press_enter
                 ;;
             9)
-                show_iptables_snat
+                remove_sub_ip
                 press_enter
                 ;;
             10)
-                configure_dns
+                show_iptables_snat
                 press_enter
                 ;;
             11)
-                configure_firewall
+                configure_dns
                 press_enter
                 ;;
             12)
-                configure_fail2ban
+                configure_firewall
                 press_enter
                 ;;
             13)
-                configure_ssh
+                configure_fail2ban
                 press_enter
                 ;;
             14)
-                install_frr
+                configure_ssh
                 press_enter
                 ;;
             15)
-                configure_frr
+                install_frr
                 press_enter
                 ;;
             16)
-                system_cleanup
+                configure_frr
                 press_enter
                 ;;
             17)
-                show_system_info
+                system_cleanup
                 press_enter
                 ;;
             18)
-                complete_setup
+                show_system_info
+                press_enter
                 ;;
             19)
+                complete_setup
+                ;;
+            20)
                 run_orion_setup
                 press_enter
                 ;;
