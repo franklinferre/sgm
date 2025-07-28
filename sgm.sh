@@ -717,12 +717,14 @@ remove_from_persistent_config() {
     if [[ -f "$netplan_file" ]]; then
         if grep -q "$ip_cidr" "$netplan_file"; then
             print_info "Removendo de $netplan_file..."
-            sed -i "/$ip_cidr/d" "$netplan_file"
-            # Se arquivo ficou vazio, remover
+            # Usar delimitador diferente para evitar conflito com /
+            sed -i "\|$ip_cidr|d" "$netplan_file"
+            # Se arquivo ficou vazio ou só tem estrutura básica, remover
             if [[ $(grep -c "addresses:" "$netplan_file") -eq 0 ]] || [[ $(wc -l < "$netplan_file") -le 5 ]]; then
                 rm -f "$netplan_file"
                 print_info "Arquivo netplan removido (vazio)"
             fi
+            print_success "IP $ip_cidr removido do arquivo netplan"
         fi
     fi
     
@@ -730,8 +732,9 @@ remove_from_persistent_config() {
     if [[ -f /etc/network/interfaces ]]; then
         if grep -q "$ip_cidr" /etc/network/interfaces; then
             print_info "Removendo de /etc/network/interfaces..."
-            # Remove as linhas relacionadas ao IP
-            sed -i "/# Sub-IP adicional ${ip_cidr}/,+2d" /etc/network/interfaces
+            # Usar delimitador diferente para evitar conflito com /
+            sed -i "\|# Sub-IP adicional ${ip_cidr}|,+2d" /etc/network/interfaces
+            print_success "IP $ip_cidr removido de /etc/network/interfaces"
         fi
     fi
 }
@@ -911,19 +914,54 @@ configure_ssh() {
 install_frr() {
     print_step "Instalação do FRR..."
     
+    # Verificar se FRR já está instalado
+    if command -v frr &> /dev/null && systemctl is-enabled frr >/dev/null 2>&1; then
+        local frr_version=$(frr --version 2>/dev/null | head -n1 || echo "versão desconhecida")
+        print_info "FRR já está instalado: $frr_version"
+        read -p "Deseja reinstalar/atualizar o FRR? (s/n): " reinstall
+        if [[ ! "$reinstall" =~ ^[SsYy]$ ]]; then
+            print_info "Instalação cancelada - FRR já está disponível"
+            return 0
+        fi
+    fi
+    
     print_info "Adicionando chave GPG do FRR..."
     curl -s https://deb.frrouting.org/frr/keys.gpg | tee /usr/share/keyrings/frrouting.gpg > /dev/null
 
-    print_info "Adicionando repositório do FRR..."
+    print_info "Configurando repositório do FRR..."
     FRRVER="frr-stable"
-    echo deb '[signed-by=/usr/share/keyrings/frrouting.gpg]' https://deb.frrouting.org/frr \
-         $(lsb_release -s -c) $FRRVER | tee -a /etc/apt/sources.list.d/frr.list
+    local repo_line="deb [signed-by=/usr/share/keyrings/frrouting.gpg] https://deb.frrouting.org/frr $(lsb_release -s -c) $FRRVER"
+    
+    # Limpar arquivo de repositório se existir para evitar duplicações
+    if [[ -f /etc/apt/sources.list.d/frr.list ]]; then
+        print_info "Limpando configurações anteriores do repositório FRR..."
+        rm -f /etc/apt/sources.list.d/frr.list
+    fi
+    
+    # Adicionar repositório limpo
+    echo "$repo_line" > /etc/apt/sources.list.d/frr.list
+    print_success "Repositório FRR configurado"
 
     print_info "Instalando FRR..."
     apt update
     apt install -y frr frr-pythontools
 
-    print_success "FRR instalado com sucesso!"
+    # Verificar se instalação foi bem-sucedida
+    if command -v frr &> /dev/null; then
+        print_success "FRR instalado com sucesso!"
+        print_info "Versão instalada: $(frr --version 2>/dev/null | head -n1 || echo 'N/A')"
+        
+        # Verificar status dos serviços
+        print_info "Status dos serviços FRR:"
+        if systemctl is-active --quiet frr; then
+            print_success "Serviço FRR: ativo"
+        else
+            print_warning "Serviço FRR: inativo"
+        fi
+    else
+        print_error "Falha na instalação do FRR"
+        return 1
+    fi
 }
 
 configure_frr() {
