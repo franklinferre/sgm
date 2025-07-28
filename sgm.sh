@@ -937,15 +937,31 @@ install_frr() {
     FRRVER="frr-stable"
     local repo_line="deb [signed-by=/usr/share/keyrings/frrouting.gpg] https://deb.frrouting.org/frr $(lsb_release -s -c) $FRRVER"
     
-    # Verificar se repositório já está configurado corretamente
-    if [[ -f /etc/apt/sources.list.d/frr.list ]] && grep -Fxq "$repo_line" /etc/apt/sources.list.d/frr.list; then
-        print_info "Repositório FRR já está configurado corretamente"
-    else
-        print_info "Configurando repositório FRR..."
-        # Limpar arquivo existente para evitar duplicações
-        echo "$repo_line" > /etc/apt/sources.list.d/frr.list
-        print_success "Repositório FRR configurado"
+    # Limpar TODOS os repositórios FRR existentes para evitar duplicações
+    print_info "Limpando configurações antigas do repositório FRR..."
+    find /etc/apt/sources.list.d/ -name "frr*" -delete 2>/dev/null || true
+    
+    # Limpar quaisquer linhas FRR em sources.list principal
+    if [[ -f /etc/apt/sources.list ]] && grep -q "frrouting" /etc/apt/sources.list; then
+        print_info "Removendo entradas FRR do sources.list principal..."
+        sed -i '/frrouting/d' /etc/apt/sources.list
     fi
+    
+    # Verificar se ainda há linha FRR duplicada
+    if grep -r "frrouting" /etc/apt/sources.list* 2>/dev/null; then
+        print_warning "Encontradas configurações FRR em outros arquivos, removendo..."
+        grep -r "frrouting" /etc/apt/sources.list* 2>/dev/null | cut -d: -f1 | sort -u | while read file; do
+            if [[ -f "$file" ]]; then
+                sed -i '/frrouting/d' "$file"
+                print_info "Limpando $file"
+            fi
+        done
+    fi
+    
+    # Criar configuração limpa
+    print_info "Criando configuração limpa do repositório FRR..."
+    echo "$repo_line" > /etc/apt/sources.list.d/frr.list
+    print_success "Repositório FRR configurado: /etc/apt/sources.list.d/frr.list"
 
     print_info "Atualizando repositórios e instalando FRR..."
     apt update -qq
