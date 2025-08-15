@@ -1,6 +1,7 @@
 # 🚀 SGM - Sistema de Gestão de Máquina v3.0
 
 Sistema completo para instalação, configuração e manutenção de servidores **Debian/Ubuntu**.
+https://blog.patrickbrandao.com/docker-servidor-de-imagens/ para mais detakhes
 
 ![Badge](https://img.shields.io/badge/Version-3.0-blue)
 ![Badge](https://img.shields.io/badge/OS-Debian%2FUbuntu-orange)
