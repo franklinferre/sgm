@@ -947,3 +947,321 @@ restrict which requests it accepts
 <https://github.com/Tecnativa/docker-socket-proxy>
 
 > 12
+
+
+Abaixo vai um **exemplo completo** de stack chamada **`projetoABC`** com:
+
+* **Traefik** como proxy reverso com **HTTPS (Let's Encrypt)**
+* **frontend** e **api** expostos publicamente via Traefik
+* **redis** e **minio** apenas em rede **interna** (não expostos)
+* Redes separadas: **proxy (pública)** e **internal (isolada)**
+* Pronto para `docker compose up -d` (standalone).
+* Extra: bloco opcional para **Swarm** no final.
+
+---
+
+# Estrutura de pastas
+
+```
+projetoABC/
+├─ .env
+├─ docker-compose.yml
+├─ traefik/
+│  ├─ traefik.yml
+│  └─ acme/              # persistência dos certificados
+│     └─ (vazio; Traefik cria acme.json)
+├─ frontend/
+│  └─ index.html
+└─ api/
+   └─ (sem código: usamos um server leve de echo)
+```
+
+---
+
+# 1) `.env`
+
+> Ajuste os domínios e e-mail antes de subir.
+
+```bash
+# ===========================
+# VARIÁVEIS GERAIS
+# ===========================
+TZ=America/Recife
+
+# Domínios públicos que apontam para seu host
+FRONTEND_HOST=www.seudominio.com
+API_HOST=api.seudominio.com
+
+# E-mail usado no Let's Encrypt
+LE_EMAIL=voce@seudominio.com
+
+# Usar ambiente de STAGING (teste) do Let's Encrypt? ("true" ou "false")
+LE_STAGING=true
+
+# Credenciais MinIO (apenas uso interno)
+MINIO_ROOT_USER=admin
+MINIO_ROOT_PASSWORD=troque-esta-senha
+
+# Traefik dashboard (somente para teste local; proteja em produção)
+TRAEFIK_DASHBOARD=true
+```
+
+---
+
+# 2) `traefik/traefik.yml`
+
+> Comece com **staging**; depois troque para produção.
+> Em produção, desabilite `api.insecure` e proteja o dashboard.
+
+```yaml
+api:
+  dashboard: true
+  insecure: ${TRAEFIK_DASHBOARD}
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+  websecure:
+    address: ":443"
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: proxy
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: ${LE_EMAIL}
+      storage: /letsencrypt/acme.json
+      # STAGING para testes (certificados não confiáveis, limites generosos)
+      {{- /* a linha abaixo será substituída por compose via env */ -}}
+      # caServer controlado no compose (envsubst não disponível aqui)
+      httpChallenge:
+        entryPoint: web
+```
+
+> Observação: o seletor de `caServer` (staging x produção) será definido via **command** no `docker-compose.yml` para ficar condicionado à variável `LE_STAGING`.
+
+---
+
+# 3) `frontend/index.html` (exemplo simples)
+
+```html
+<!doctype html>
+<html lang="pt-br">
+  <head><meta charset="utf-8"><title>projetoABC - Frontend</title></head>
+  <body>
+    <h1>projetoABC - Frontend</h1>
+    <p>Servido pelo Traefik com HTTPS. 🎉</p>
+  </body>
+</html>
+```
+
+---
+
+# 4) `docker-compose.yml`
+
+```yaml
+version: "3.9"
+
+networks:
+  proxy:
+    name: proxy
+  internal:
+    name: internal
+    internal: true
+
+volumes:
+  traefik_letsencrypt:
+  minio_data:
+  redis_data:
+
+services:
+  # ===========================
+  # TRAEFIK (proxy reverso)
+  # ===========================
+  traefik:
+    image: traefik:v3.1
+    container_name: traefik
+    restart: unless-stopped
+    environment:
+      - TZ=${TZ}
+    command:
+      # Seleciona o caServer com base em LE_STAGING
+      - "--certificatesresolvers.letsencrypt.acme.caserver=${LE_STAGING:-true:?} == true ? https://acme-staging-v02.api.letsencrypt.org/directory : https://acme-v02.api.letsencrypt.org/directory"
+      # ^ Alguns runtimes não suportam ternário. Se der erro, comente a linha acima e
+      #   descomente UMA das duas linhas abaixo conforme o ambiente:
+      # - "--certificatesresolvers.letsencrypt.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
+      # - "--certificatesresolvers.letsencrypt.acme.caserver=https://acme-v02.api.letsencrypt.org/directory"
+    ports:
+      - "80:80"
+      - "443:443"
+      # (opcional) dashboard em 8080 - não exponha em produção sem proteção!
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/traefik.yml:ro
+      - traefik_letsencrypt:/letsencrypt
+    networks:
+      - proxy
+    security_opt:
+      - no-new-privileges:true
+    labels:
+      - "traefik.enable=${TRAEFIK_DASHBOARD}"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.${FRONTEND_HOST}`)"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.tls.certresolver=letsencrypt"
+      - "traefik.http.services.traefik.loadbalancer.server.port=8080"
+
+  # ===========================
+  # FRONTEND (exposto)
+  # ===========================
+  frontend:
+    image: nginx:alpine
+    container_name: projetoabc-frontend
+    restart: unless-stopped
+    depends_on:
+      - traefik
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+    networks:
+      - proxy
+      - internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.front.rule=Host(`${FRONTEND_HOST}`)"
+      - "traefik.http.routers.front.entrypoints=websecure"
+      - "traefik.http.routers.front.tls=true"
+      - "traefik.http.routers.front.tls.certresolver=letsencrypt"
+      - "traefik.http.services.front.loadbalancer.server.port=80"
+
+  # ===========================
+  # API (exposta)
+  # ===========================
+  api:
+    image: ealen/echo-server:latest   # API de eco (GET/POST) para exemplo
+    container_name: projetoabc-api
+    restart: unless-stopped
+    environment:
+      - ENABLE__FORMATS__JSON=true
+      - ENABLE__FORMATS__HTML=true
+      - ENABLE__FORMATS__TEXT=true
+      - SERVER__PORT=3000
+      - TZ=${TZ}
+    networks:
+      - proxy
+      - internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`${API_HOST}`)"
+      - "traefik.http.routers.api.entrypoints=websecure"
+      - "traefik.http.routers.api.tls=true"
+      - "traefik.http.routers.api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.api.loadbalancer.server.port=3000"
+    depends_on:
+      - redis
+      - minio
+
+  # ===========================
+  # REDIS (interno, não exposto)
+  # ===========================
+  redis:
+    image: redis:7-alpine
+    container_name: projetoabc-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    networks:
+      - internal
+    volumes:
+      - redis_data:/data
+    # Sem labels Traefik e sem portas publicadas
+
+  # ===========================
+  # MINIO (interno, não exposto)
+  # ===========================
+  minio:
+    image: minio/minio:RELEASE.2024-01-01T16-36-33Z
+    container_name: projetoabc-minio
+    restart: unless-stopped
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - TZ=${TZ}
+    command: server /data --console-address ":9001"
+    networks:
+      - internal
+    volumes:
+      - minio_data:/data
+    # Sem labels Traefik e sem portas publicadas
+```
+
+> **Por que duas redes?**
+>
+> * **proxy**: compartilhada com Traefik e os serviços que serão expostos.
+> * **internal**: comunicação privada (api ↔ redis ↔ minio). Aqui nada é publicado.
+
+---
+
+# 5) Subir o ambiente
+
+```bash
+cd projetoABC
+docker compose up -d
+```
+
+* Acesse o **frontend**: `https://www.seudominio.com`
+* Acesse a **API**: `https://api.seudominio.com`
+* (Opcional) Dashboard do Traefik de teste: `http://traefik.www.seudominio.com:8080`
+
+  * **Atenção:** isso só é resolvido se você criar o subdomínio `traefik.www.seudominio.com` apontando para o host. Em produção, **não exponha** sem proteção.
+
+Quando tudo estiver OK em **staging** (certificados não confiáveis), troque para produção:
+
+1. No `docker-compose.yml`, ajuste a linha do `command` do Traefik (use o `caServer` de produção) **ou** defina `LE_STAGING=false` e deixe apenas a linha de produção ativa.
+2. Remova o volume de acme staging (ou apague `acme.json` dentro do volume).
+3. `docker compose up -d --force-recreate`.
+
+---
+
+## Boas práticas rápidas
+
+* **Proteja o dashboard**: remova `insecure: true` e/ou aplique autenticação (middleware).
+* **DNS correto**: os domínios `FRONTEND_HOST` e `API_HOST` precisam apontar para o IP público do host.
+* **Portas**: certifique-se de que **80/443** estão liberadas externamente para o host.
+* **Segurança do socket**: para produção, considere usar **docker-socket-proxy** para limitar o acesso do Traefik ao Docker.
+
+---
+
+## (Opcional) Versão Docker Swarm (stack)
+
+Se quiser rodar em **Swarm**, crie a rede overlay e faça o deploy:
+
+```bash
+docker network create -d overlay --attachable proxy
+docker network create -d overlay --attachable internal
+docker stack deploy -c docker-compose.yml projetoabc
+```
+
+> Notas no Swarm:
+>
+> * Mantenha **1 réplica** do Traefik para evitar condições de corrida no ACME.
+> * Use volumes persistentes compatíveis com o nó onde o Traefik rodar (ou *constraints* para fixar o serviço a um nó).
+> * Conecte serviços que serão expostos à rede `proxy`; **não** conecte `redis`/`minio` à `proxy`.
+
+---
+
+## Como trocar os serviços por seus apps reais
+
+* **frontend**: troque `nginx:alpine` por sua imagem de frontend; mantenha o `server.port` correto na label `...services.front.loadbalancer.server.port`.
+* **api**: troque `ealen/echo-server` por sua API (Node, Python, etc.) e ajuste a porta na label.
+* **redis/minio**: já prontos para uso interno (conectados via `internal`). Sua API acessará `redis:6379` e `minio:9000`/`:9001` via DNS interno do Docker.
+
+---
+
