@@ -1101,19 +1101,46 @@ graph TD
 
 ### Exemplo de Uso Completo
 
-Para implementar uma nova feature de autenticação:
+Para implementar uma nova feature de autenticação com infraestrutura completa:
 
 1. **[A.10]** Consultar MCP Context7 sobre padrões de autenticação atualizados
-2. **[A.5]** Criar TODO Protocol JSON com decomposição da tarefa (incluindo business_value e purpose_validation)
-3. **[A.9]** Validar que não serão criados apps de teste ou componentes fictícios
-4. **[A.4]** Passar por Gate G1 com PRD e análise de requisitos
-5. **[A.7]** Definir contratos REQUEST/RESPONSE para cada interação
-6. **[A.1]** Executar apenas primeiro item do TODO e aguardar Go
-7. **[A.2]** Implementar em no máximo 5 arquivos por ciclo
-8. **[A.11]** Otimizar código para evitar desperdício de tokens
-9. **[A.3]** Para qualquer ambiguidade, usar ASSUMPTION_REQUEST
-10. **[A.6]** Configuração de JWT triggers RISK_ALERT para validação de segurança
-11. **[A.8]** Necessidade de refresh tokens identificada como SCOPE_CHANGE
+2. **[A.12]** Validar integração com Supabase Auth + RLS policies
+3. **[A.5]** Criar TODO Protocol JSON com decomposição da tarefa (incluindo business_value e purpose_validation)
+4. **[A.9]** Validar que não serão criados apps de teste ou componentes fictícios
+5. **[A.4]** Passar por Gate G1 com PRD e análise de requisitos
+6. **[A.7]** Definir contratos REQUEST/RESPONSE para cada interação
+7. **[A.1]** Executar apenas primeiro item do TODO e aguardar Go
+8. **[A.2]** Implementar em no máximo 5 arquivos por ciclo
+9. **[A.11]** Otimizar código para evitar desperdício de tokens
+10. **[A.3]** Para qualquer ambiguidade, usar ASSUMPTION_REQUEST
+11. **[A.6]** Configuração de JWT triggers RISK_ALERT para validação de segurança
+12. **[A.8]** Necessidade de refresh tokens identificada como SCOPE_CHANGE
+13. **[A.12]** Configurar Redis para cache de sessões e rate limiting
+14. **[A.13]** Implementar logging estruturado e métricas de autenticação
+
+### Exemplo Específico: Sistema de Upload de Arquivos
+
+**Infraestrutura necessária:**
+```json
+{
+  "supabase_setup": {
+    "storage": "bucket 'uploads' com RLS policy por user_id",
+    "database": "tabela 'files' com metadata + foreign keys",
+    "functions": "edge function para resize de imagens"
+  },
+  "redis_cache": "cache de URLs assinadas por 1 hora",
+  "background_jobs": "fila para processamento de imagens",
+  "monitoring": "métricas de uploads, success rate, storage usage"
+}
+```
+
+**Validação obrigatória:**
+- ✅ Não criar bucket de teste temporário
+- ✅ RLS policies impedem acesso não autorizado
+- ✅ Jobs de processamento são idempotentes
+- ✅ URLs assinadas têm expiração apropriada
+- ✅ Logs não contêm dados sensíveis
+- ✅ Cleanup de arquivos órfãos implementado
 
 ### Checklist de Validação Anti-Desperdício
 
